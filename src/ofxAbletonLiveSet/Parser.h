@@ -107,11 +107,10 @@ private:
 	
 	void parse(Note& note, const pugi::xml_node &node, RealTime offset)
 	{
-		const pugi::xml_node& e = node.child("Notes").child("MidiNoteEvent");
+		const pugi::xml_node& e = node;
 		note.time = LS.tempo.toRealTime(e.attribute("Time").as_float(0)) + offset;
 		note.duration = LS.tempo.toRealTime(e.attribute("Duration").as_float(0));
 		note.velocity = e.attribute("Velocity").as_float(0);
-		note.key = node.child("MidiKey").attribute("Value").as_int();
 	}
 
 	void parse(MidiClip& MC, const pugi::xml_node &node, RealTime offset)
@@ -127,16 +126,29 @@ private:
 		MC.name = node.child("Name").attribute("Value").value();
 		MC.annotation = node.child("Annotation").attribute("Value").value();
 		
-		pugi::xpath_query q("Notes//KeyTrack");
+		pugi::xpath_query q("Notes//KeyTracks//KeyTrack");
 		pugi::xpath_node_set nodes = q.evaluate_node_set(node);
 		
 		MC.notes.clear();
 		
 		for (int i = 0; i < nodes.size(); i++)
 		{
-			Note note;
-			parse(note, nodes[i].node(), MC.time);
-			MC.notes.push_back(note);
+			const pugi::xml_node& key_tracks = nodes[i].node();
+			int midi_key = key_tracks.child("MidiKey").attribute("Value").as_int();
+			
+			pugi::xml_object_range<pugi::xml_node_iterator> notes = key_tracks.child("Notes").children();
+			
+			pugi::xml_node_iterator it = notes.begin();
+			while (it != notes.end())
+			{
+				Note note;
+				note.key = midi_key;
+				
+				parse(note, *it, MC.time);
+				MC.notes.push_back(note);
+				
+				it++;
+			}
 		}
 		
 		std:sort(MC.notes.begin(), MC.notes.end(), sort_by_time<Note>);
