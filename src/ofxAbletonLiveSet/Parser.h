@@ -25,7 +25,7 @@ public:
 		
 		pugi::xml_document doc;
 		if (!doc.load(inflater)) return false;
-		
+
 		parseTempo(doc);
 		parseMidiTrack(doc);
 		parseLocator(doc);
@@ -36,6 +36,7 @@ public:
 private:
 	
 	LiveSet &LS;
+	int controller_target_offset;
 	
 	void parseTempo(const pugi::xml_document& doc)
 	{
@@ -89,6 +90,16 @@ private:
 	{
 		MT.name = node.child("Name").child("EffectiveName").attribute("Value").value();
 		MT.color = node.child("ColorIndex").attribute("Value").as_int();
+		
+		{
+			pugi::xpath_query q(".//MidiControllers/ControllerTargets.0");
+			pugi::xpath_node_set nodes = q.evaluate_node_set(node);
+			
+			if (nodes.size())
+			{
+				controller_target_offset = nodes[0].node().attribute("Id").as_int(0);
+			}
+		}
 		
 		pugi::xpath_query q(".//ArrangerAutomation/Events/MidiClip");
 		pugi::xpath_node_set nodes = q.evaluate_node_set(node);
@@ -154,7 +165,7 @@ private:
 			
 			std:sort(MC.notes.begin(), MC.notes.end(), sort_by_time<Note>);
 		}
-		
+
 		{
 			pugi::xpath_query q("Envelopes//ClipEnvelope");
 			pugi::xpath_node_set nodes = q.evaluate_node_set(node);
@@ -163,7 +174,7 @@ private:
 			{
 				const pugi::xml_node& clip_envelope = nodes[i].node();
 				
-				int id = clip_envelope.child("EnvelopeTarget").child("PointeeId").attribute("Value").as_int() - 15842; // Magic Number?
+				int id = clip_envelope.child("EnvelopeTarget").child("PointeeId").attribute("Value").as_int() - controller_target_offset;
 				
 				MC.envelopes.push_back(Automation());
 				Automation &automation = MC.envelopes.back();
