@@ -126,32 +126,64 @@ private:
 		MC.name = node.child("Name").attribute("Value").value();
 		MC.annotation = node.child("Annotation").attribute("Value").value();
 		
-		pugi::xpath_query q("Notes//KeyTracks//KeyTrack");
-		pugi::xpath_node_set nodes = q.evaluate_node_set(node);
-		
-		MC.notes.clear();
-		
-		for (int i = 0; i < nodes.size(); i++)
 		{
-			const pugi::xml_node& key_tracks = nodes[i].node();
-			int midi_key = key_tracks.child("MidiKey").attribute("Value").as_int();
+			pugi::xpath_query q("Notes//KeyTracks//KeyTrack");
+			pugi::xpath_node_set nodes = q.evaluate_node_set(node);
 			
-			pugi::xml_object_range<pugi::xml_node_iterator> notes = key_tracks.child("Notes").children();
+			MC.notes.clear();
 			
-			pugi::xml_node_iterator it = notes.begin();
-			while (it != notes.end())
+			for (int i = 0; i < nodes.size(); i++)
 			{
-				Note note;
-				note.key = midi_key;
+				const pugi::xml_node& key_tracks = nodes[i].node();
+				int midi_key = key_tracks.child("MidiKey").attribute("Value").as_int();
 				
-				parse(note, *it, MC.time);
-				MC.notes.push_back(note);
+				pugi::xml_object_range<pugi::xml_node_iterator> notes = key_tracks.child("Notes").children();
 				
-				it++;
+				pugi::xml_node_iterator it = notes.begin();
+				while (it != notes.end())
+				{
+					Note note;
+					note.key = midi_key;
+					
+					parse(note, *it, MC.time);
+					MC.notes.push_back(note);
+					
+					it++;
+				}
 			}
+			
+			std:sort(MC.notes.begin(), MC.notes.end(), sort_by_time<Note>);
 		}
 		
-		std:sort(MC.notes.begin(), MC.notes.end(), sort_by_time<Note>);
+		{
+			pugi::xpath_query q("Envelopes//ClipEnvelope");
+			pugi::xpath_node_set nodes = q.evaluate_node_set(node);
+			
+			for (int i = 0; i < nodes.size(); i++)
+			{
+				const pugi::xml_node& clip_envelope = nodes[i].node();
+				
+				int id = clip_envelope.child("EnvelopeTarget").child("PointeeId").attribute("Value").as_int() - 15842; // Magic Number?
+				
+				MC.envelopes.push_back(Automation());
+				Automation &automation = MC.envelopes.back();
+				
+				automation.id = id;
+				
+				pugi::xml_object_range<pugi::xml_node_iterator> events = clip_envelope.child("Automation").child("Events").children();
+				pugi::xml_node_iterator it = events.begin();
+				
+				while (it != events.end())
+				{
+					float time = LS.tempo.toRealTime(it->attribute("Time").as_float()) + MC.time;
+					float value = it->attribute("Value").as_float();
+					if (time < 0) time = 0;
+					
+					automation.events[time] = value;
+					it++;
+				}
+			}
+		}
 	}
 
 	//

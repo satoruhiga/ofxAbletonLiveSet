@@ -28,6 +28,11 @@ public:
 				{
 					cout << "Note Start Time: " << m.notes[k].time << endl;
 				}
+				
+				for (int k = 0; k < m.envelopes.size(); k++)
+				{
+					cout << "Envelope ID: " << m.envelopes[k].id << endl;
+				}
 			}
 			
 			cout << "===" << endl << endl;
