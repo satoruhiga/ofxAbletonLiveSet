@@ -10,7 +10,7 @@ public:
 		ofxAbletonLiveSet::LiveSet LS;
 		
 		ofxAbletonLiveSet::Parser parser(LS);
-		parser.open("test.als");
+		assert(parser.open("test.als"));
 		
 		for (int i = 0; i < LS.miditracks.size(); i++)
 		{
